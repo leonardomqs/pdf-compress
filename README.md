@@ -1,6 +1,6 @@
 # pdf-compress
 
-Compressão de PDFs via Ghostscript, com notebooks de apoio para processar lotes de arquivos e juntá-los em um único PDF.
+Compressão de PDFs via Ghostscript, com junção e rotação em lote. Sem notebooks: tudo pela linha de comando.
 
 O projeto usa [uv](https://docs.astral.sh/uv/) para gerenciar o Python e as dependências.
 
@@ -71,6 +71,28 @@ Níveis de compressão (`-c`): `0` default, `1` prepress, `2` printer (padrão),
 > As duas pastas são versionadas vazias (via `.gitkeep`) e todo o conteúdo delas é ignorado pelo
 > git — os PDFs que você processar não sobem para o GitHub. Veja [Nenhum PDF no repositório](#nenhum-pdf-no-repositório).
 
+### Juntar e rotacionar
+
+Para juntar tudo o que foi comprimido em um PDF único, use `-m` com o nome do arquivo final:
+
+```powershell
+uv run pdf-compress -c 3 -m atas.pdf
+```
+
+O resultado sai em `output/atas.pdf`, na mesma ordem em que os arquivos aparecem em `input/`.
+
+Para girar todas as páginas (útil quando o scanner inverte a folha), use `-r` com um múltiplo de 90:
+
+```powershell
+uv run pdf-compress -c 3 -r 180
+```
+
+As duas opções se combinam — comprime, gira e junta em uma passada:
+
+```powershell
+uv run pdf-compress -c 3 -r 180 -m atas.pdf
+```
+
 ### Arquivo avulso
 
 Passando um caminho explícito, o comportamento antigo continua valendo:
@@ -80,15 +102,6 @@ uv run pdf-compress arquivo.pdf -o saida.pdf -c 3
 ```
 
 Sem `-o`, o arquivo original é sobrescrito — use `-b` para guardar um `_BACKUP.pdf` antes.
-
-### Notebooks
-
-```powershell
-uv run jupyter lab
-```
-
-Os notebooks importam `from pdf_compressor import *` e devem ser executados a partir da raiz do
-projeto. No VS Code, selecione o interpretador `.venv\Scripts\python.exe`.
 
 ## Nenhum PDF no repositório
 
@@ -133,9 +146,6 @@ O arquivo `uv.lock` é versionado no git para garantir builds reproduzíveis.
 | `input/` | Entrada: PDFs ou pastas de PDFs a comprimir. Versionada vazia. |
 | `output/` | Saída: resultado da compressão, espelhando a estrutura de `input/`. Versionada vazia. |
 | `.githooks/pre-commit` | Hook que bloqueia commits contendo PDFs. |
-| `pdf_compressor.py` | Wrapper do Ghostscript (`compress()` + CLI). Original de [Theeko74](https://github.com/theeko74/pdfc), licença MIT. |
-| `ementas.ipynb` | Comprime as ementas em lote e junta tudo em `atas.pdf`. |
-| `executa.ipynb` | Compressão avulsa de um arquivo. |
-| `*_2024.ipynb` | Execuções de demandas anteriores, mantidas como histórico. |
+| `pdf_compressor.py` | Todo o código: `compress()`, `merge()`, `rotate()` e a CLI. Baseado em [Theeko74](https://github.com/theeko74/pdfc), licença MIT. |
 | `pyproject.toml` | Metadados e dependências do projeto. |
 | `.python-version` | Versão do Python usada pelo uv. |

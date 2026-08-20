@@ -28,6 +28,8 @@ import os.path
 import sys
 import shutil
 
+import PyPDF2
+
 INPUT_DIR = 'input'
 OUTPUT_DIR = 'output'
 
@@ -75,6 +77,44 @@ def get_ghostscript_path():
         if shutil.which(name):
             return shutil.which(name)
     raise FileNotFoundError(f'No GhostScript executable was found on path ({"/".join(gs_names)})')
+
+
+def merge(input_file_paths, output_file_path):
+    """Join several PDFs into a single file, following the given order."""
+    if not input_file_paths:
+        print("Error: no PDF to merge")
+        sys.exit(1)
+
+    writer = PyPDF2.PdfWriter()
+    for input_file_path in input_file_paths:
+        writer.append(input_file_path)
+
+    os.makedirs(os.path.dirname(output_file_path) or '.', exist_ok=True)
+    with open(output_file_path, 'wb') as output_file:
+        writer.write(output_file)
+    writer.close()
+
+    print("Merged {} file(s) into '{}' ({:.1f}MB).".format(
+        len(input_file_paths), output_file_path,
+        os.path.getsize(output_file_path) / 1000000))
+
+
+def rotate(pdf_file_path, degree=180):
+    """Rotate every page of a PDF in place. Degree must be a multiple of 90."""
+    if degree % 90 != 0:
+        print("Error: rotation must be a multiple of 90")
+        sys.exit(1)
+
+    reader = PyPDF2.PdfReader(pdf_file_path)
+    writer = PyPDF2.PdfWriter()
+    for page in reader.pages:
+        page.rotate(degree)
+        writer.add_page(page)
+
+    with open(pdf_file_path, 'wb') as output_file:
+        writer.write(output_file)
+    writer.close()
+    print("Rotated '{}' by {} degrees.".format(pdf_file_path, degree))
 
 
 def iter_pdfs(root):
@@ -140,6 +180,10 @@ def main():
                                             '(or of the output folder, in folder mode)')
     parser.add_argument('-c', '--compress', type=int, help='Compression level from 0 to 4')
     parser.add_argument('-b', '--backup', action='store_true', help="Backup the old PDF file")
+    parser.add_argument('-m', '--merge', metavar='NAME',
+                        help='Also join the compressed PDFs into a single file named NAME')
+    parser.add_argument('-r', '--rotate', type=int, metavar='DEGREE',
+                        help='Rotate every page of the result by DEGREE (multiple of 90)')
     parser.add_argument('--open', action='store_true', default=False,
                         help='Open PDF after compression')
     args = parser.parse_args()
@@ -150,7 +194,15 @@ def main():
 
     # Folder mode: 'input' -> 'output', never touching the source files
     if args.input is None:
-        compress_dir(INPUT_DIR, args.out or OUTPUT_DIR, power=args.compress)
+        output_dir = args.out or OUTPUT_DIR
+        written = compress_dir(INPUT_DIR, output_dir, power=args.compress)
+        if written and args.rotate:
+            print()
+            for output_file_path in written:
+                rotate(output_file_path, args.rotate)
+        if written and args.merge:
+            print()
+            merge(written, os.path.join(output_dir, args.merge))
         return
 
     # In case no output file is specified, store in temp file
@@ -166,6 +218,10 @@ def main():
             shutil.copyfile(args.input, args.input.replace(".pdf", "_BACKUP.pdf"))
         shutil.copyfile(args.out, args.input)
         os.remove(args.out)
+
+    # Rotation applies to the compressed result
+    if args.rotate:
+        rotate(args.input if args.out == 'temp.pdf' else args.out, args.rotate)
 
     # In case we want to open the file after compression
     if args.open:
