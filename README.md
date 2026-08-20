@@ -42,13 +42,42 @@ dependências exatamente nas versões travadas em `uv.lock`. Não é preciso ati
 
 ## Uso
 
-### Linha de comando
+### Pastas `input/` e `output/` (modo recomendado)
+
+Coloque em `input/` o que quiser comprimir — um PDF solto, vários PDFs, ou pastas com PDFs — e rode:
+
+```powershell
+uv run pdf-compress
+```
+
+Todo PDF encontrado em `input/` é comprimido para `output/`, **preservando a estrutura de pastas**:
+
+```
+input/                          output/
+├── contrato.pdf        ──>     ├── contrato.pdf
+└── lote_agosto/                └── lote_agosto/
+    ├── ata_01.pdf                  ├── ata_01.pdf
+    └── ata_02.pdf                  └── ata_02.pdf
+```
+
+Os arquivos de `input/` nunca são alterados. Para escolher o nível de compressão:
+
+```powershell
+uv run pdf-compress -c 3
+```
+
+Níveis de compressão (`-c`): `0` default, `1` prepress, `2` printer (padrão), `3` ebook, `4` screen.
+
+> As duas pastas são versionadas vazias (via `.gitkeep`) e todo o conteúdo delas é ignorado pelo
+> git — os PDFs que você processar não sobem para o GitHub. Veja [Nenhum PDF no repositório](#nenhum-pdf-no-repositório).
+
+### Arquivo avulso
+
+Passando um caminho explícito, o comportamento antigo continua valendo:
 
 ```powershell
 uv run pdf-compress arquivo.pdf -o saida.pdf -c 3
 ```
-
-Níveis de compressão (`-c`): `0` default, `1` prepress, `2` printer (padrão), `3` ebook, `4` screen.
 
 Sem `-o`, o arquivo original é sobrescrito — use `-b` para guardar um `_BACKUP.pdf` antes.
 
@@ -60,6 +89,30 @@ uv run jupyter lab
 
 Os notebooks importam `from pdf_compressor import *` e devem ser executados a partir da raiz do
 projeto. No VS Code, selecione o interpretador `.venv\Scripts\python.exe`.
+
+## Nenhum PDF no repositório
+
+Este repositório é público e **nenhum PDF deve ser versionado**. A garantia é feita em duas camadas:
+
+1. **`.gitignore`** — `*.pdf` e `*.PDF` são ignorados em qualquer diretório, então um `git add .`
+   nunca pega um PDF por acidente.
+2. **Hook `pre-commit`** — mesmo um `git add -f` é barrado na hora do commit. O hook vive em
+   `.githooks/pre-commit`, versionado junto do projeto.
+
+O hook é ativado por `core.hooksPath`, que é uma configuração local. **Depois de clonar o
+repositório, rode uma vez:**
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Sem esse comando, apenas o `.gitignore` protege. Para conferir que está ativo:
+
+```powershell
+git config core.hooksPath      # deve responder: .githooks
+```
+
+Trabalhe sempre pelas pastas `input/` e `output/` e nenhuma das duas camadas será acionada.
 
 ## Gerenciando dependências
 
@@ -77,6 +130,9 @@ O arquivo `uv.lock` é versionado no git para garantir builds reproduzíveis.
 
 | Arquivo | Descrição |
 | --- | --- |
+| `input/` | Entrada: PDFs ou pastas de PDFs a comprimir. Versionada vazia. |
+| `output/` | Saída: resultado da compressão, espelhando a estrutura de `input/`. Versionada vazia. |
+| `.githooks/pre-commit` | Hook que bloqueia commits contendo PDFs. |
 | `pdf_compressor.py` | Wrapper do Ghostscript (`compress()` + CLI). Original de [Theeko74](https://github.com/theeko74/pdfc), licença MIT. |
 | `ementas.ipynb` | Comprime as ementas em lote e junta tudo em `atas.pdf`. |
 | `executa.ipynb` | Compressão avulsa de um arquivo. |
